@@ -1,9 +1,6 @@
 import type { Request, Response } from "express";
-import {
-  Product,
-  PRODUCT_CATEGORIES,
-  type ProductCategory,
-} from "../models/Product.js";
+import { Product, PRODUCT_CATEGORIES } from "../models/Product.js";
+import type { AuthenticatedRequest } from "../middleware/authMiddleware.js";
 
 /**
  *
@@ -74,5 +71,168 @@ export const getProducts = async (
       message: "Internal server error",
       error: (error as Error).message,
     });
+  }
+};
+
+/**
+ * @desc     create product
+ * @route    /product/create
+ * @access   private (admin)
+ */
+
+export const createProduct = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const {
+      name,
+      sku,
+      price,
+      image,
+      category,
+      brand,
+      specifications,
+      description,
+      stockQuantity,
+      minStockAlert,
+    } = req.body;
+
+    if (
+      !name ||
+      !sku ||
+      !category ||
+      !specifications ||
+      !description ||
+      !price ||
+      !image ||
+      image.length === 0
+    ) {
+      res
+        .status(400)
+        .json({ success: false, message: "Missing required product fields." });
+      return;
+    }
+    if (category) {
+      const isValidCategory = PRODUCT_CATEGORIES.includes(category as any);
+      if (!isValidCategory) {
+        res.status(400).json({
+          success: false,
+          message: `product category: ${category} does not exist`,
+        });
+        return;
+      }
+    }
+
+    const skuExist = await Product.findOne({ sku: sku.toUpperCase() });
+    if (skuExist) {
+      res.status(400).json({
+        success: false,
+        message: `sku: ${sku.toUpperCase()} already exist.`,
+      });
+      return;
+    }
+
+    const newProduct = await Product.create({
+      name,
+      sku,
+      price,
+      image,
+      category,
+      brand,
+      specifications,
+      description,
+      stockQuantity,
+      minStockAlert,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "new product added.",
+      product: newProduct,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
+  }
+};
+
+/**
+ * @desc      create childProduct
+ * @route     /products/:id/variant
+ * @access    private ('admin)
+ */
+
+export const createChildProduct = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const parentId = req.params.id;
+    const {
+      sku,
+      price,
+      specifications,
+      image,
+      description,
+      stockQuantity,
+      minStockAlert,
+      variantTitle,
+    } = req.body;
+
+    const priceInt = parseInt(price, 10);
+    if (
+      !sku ||
+      priceInt === 0 ||
+      !specifications ||
+      !image ||
+      image.length === 0 ||
+      !variantTitle
+    ) {
+      res.status(400).json({
+        success: false,
+        message:
+          "missing required varient parameters (sku, price, specification, image, variantTitle)",
+      });
+      return;
+    }
+    console.log(parentId);
+    const parentProduct = await Product.findById(parentId);
+    if (!parentProduct) {
+      res
+        .status(400)
+        .json({ success: false, message: " parent product does not exist " });
+      return;
+    }
+    const skuExist = await Product.findOne({ sku: sku.toUpperCase() });
+    if (skuExist) {
+      res.status(400).json({
+        success: false,
+        message: `sku: ${sku.toUpperCase()} already exist.`,
+      });
+      return;
+    }
+
+    const newChildProduct = await Product.create({
+      name: parentProduct.name,
+      sku: sku.toUpperCase(),
+      price: price,
+      category: parentProduct.category,
+      image: image,
+      description: description || parentProduct.description,
+      stockQuantity: stockQuantity ?? 0,
+      minStockAlert: minStockAlert,
+      specifications: specifications,
+      parentProductId: parentProduct._id,
+      variantTitle: variantTitle,
+      isMasterProduct: false,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "child product created successfully. ",
+      product: newChildProduct,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: (error as Error).message });
   }
 };

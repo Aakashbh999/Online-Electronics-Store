@@ -28,8 +28,6 @@ export const authorizedRoles = (...allowRoles: UserRole[]) => {
 
         return;
       }
-
-      res.status(200).json({ success: true, message: "authorized" });
       next();
     } catch (error) {
       res.status(500).json({ error: (error as Error).message });

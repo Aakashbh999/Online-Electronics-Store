@@ -24,13 +24,17 @@ interface IProductImg {
 export interface IProduct extends Document {
   name: string;
   sku: string;
-  productCategory: ProductCategory;
+  price: number;
+  category: ProductCategory;
   brand: string;
   specifications: ISpecification[];
-  productImg: IProductImg[];
+  image: IProductImg[];
   description?: string;
   stockQuantity: number;
-  minimumStockAlert: number;
+  minStockAlert: number;
+  variantTitle: string;
+  isMasterProduct: boolean;
+  parentProductId: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,14 +71,19 @@ const ProductSchema: Schema<IProduct> = new Schema(
       required: true,
       trim: true,
     },
-    productCategory: {
+    price: {
+      type: Number,
+      required: true,
+      trim: true,
+    },
+    category: {
       type: String,
       enum: PRODUCT_CATEGORIES,
       required: true,
     },
     brand: { type: String, trim: true },
     specifications: [SpecificationsSchema],
-    productImg: {
+    image: {
       type: [ProductImgSchema],
       required: true,
       validate: function (val: IProductImg[]) {
@@ -84,7 +93,15 @@ const ProductSchema: Schema<IProduct> = new Schema(
     },
     description: { type: String, trim: true },
     stockQuantity: { type: Number, required: true, min: 0, default: 0 },
-    minimumStockAlert: { type: Number, required: true, min: 0, default: 5 },
+    minStockAlert: { type: Number, required: true, min: 0, default: 5 },
+
+    variantTitle: { type: String, trim: true },
+    parentProductId: {
+      type: Schema.Types.ObjectId,
+      ref: "product",
+      default: null,
+    },
+    isMasterProduct: { type: Boolean, default: true },
   },
   {
     timestamps: true,
